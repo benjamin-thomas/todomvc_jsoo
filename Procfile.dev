@@ -1,0 +1,4 @@
+# foreman start -f Procfile.dev
+web: live-server --no-browser ./web/
+compile: dune build -w
+reload_web: while true;do echo _build/default/src/todomvc.bc.js | entr touch ./web/index.html;sleep 1;done

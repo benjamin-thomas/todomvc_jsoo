@@ -1,0 +1,15 @@
+(executable
+ (name todomvc2)
+ (libraries
+  js_of_ocaml-ppx
+  lwt
+  lwt_ppx
+  js_of_ocaml-lwt
+  tyxml
+  js_of_ocaml-tyxml
+  ppx_deriving
+  js_of_ocaml.deriving
+  js_of_ocaml-ppx_deriving_json)
+ (preprocess
+  (pps js_of_ocaml-ppx lwt_ppx js_of_ocaml-ppx_deriving_json))
+ (modes js))
