@@ -1,24 +1,39 @@
 module V = Vdom
 
-let p = V.elt "p"
-let br = V.elt "br"
+(*
+ * MODEL
+ *)
 
-type model = int
-
-let update (model : model) = function
-  | `Inc -> model + 1
-  | `Dec -> model - 1
-;;
+type model = int [@@warning "-34"]
 
 let init = 0
+
+(*
+ * UPDATE
+ *)
+
+type msg = Inc | Dec
+
+let update model msg =
+  match msg with
+  | Inc -> model + 1
+  | Dec -> model - 1
+;;
 
 let button txt msg =
   V.(input [] ~a:[ onclick (fun _ -> msg); type_button; value txt ])
 ;;
 
+(*
+ * VIEW
+ *)
+
+let p = V.elt "p"
+let br = V.elt "br"
+
 let view model =
   let row =
-    V.(div [ button "-" `Dec; text (string_of_int model); button "+" `Inc ])
+    V.(div [ button "-" Dec; text (string_of_int model); button "+" Inc ])
   in
   V.(
     div
@@ -27,7 +42,7 @@ let view model =
           [ p [ text "Hello custom p tag" ]
           ; br []
           ; p [ text "Hello custom p tag, again" ]
-          ; button (string_of_int model) `Inc
+          ; button (string_of_int model) Inc
           ]
       ])
 ;;
