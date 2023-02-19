@@ -2,21 +2,7 @@
   foreman start -f Procfile.dev
 *)
 
-[@@@warning "-23-27-32-34-37-69"]
-
-let task_input =
-  Js_of_ocaml_tyxml.Tyxml_js.Html5.(
-    input
-      ~a:
-        [ a_input_type `Text
-        ; a_class [ "new-todo" ]
-        ; a_placeholder "What needs to be done?"
-        ; a_autofocus ()
-        ]
-      ())
-;;
-
-let task_input_dom = Js_of_ocaml_tyxml.Tyxml_js.To_dom.of_input task_input
+[@@@warning "-23-26-27-32-34-37-69"]
 
 type todo = { descr : string }
 type model = { field : string; todos : todo list }
@@ -24,18 +10,37 @@ type rs = model React.signal
 type rf = ?step:React.step -> model -> unit
 type rp = rs * rf
 
+let task_input ((r, f) : rp) =
+  let s_field = React.S.map (fun m -> m.field) r in
+  Js_of_ocaml_tyxml.Tyxml_js.(
+    Html.(
+      R.Html5.input
+        ~a:
+          [ a_input_type `Text
+          ; a_class [ "new-todo" ]
+          ; a_placeholder "What needs to be done?"
+          ; a_autofocus ()
+          ; R.Html.a_value s_field
+          ]
+        ()))
+;;
+
+let task_input_dom (rp : rp) =
+  Js_of_ocaml_tyxml.Tyxml_js.To_dom.of_input (task_input rp)
+;;
+
 let init = { field = ""; todos = [ { descr = "First todo!" } ] }
 
-type action = Add
+type action = Add | Update of string
 
 let update action ((r, f) : rp) =
   let curr_model = React.S.value r in
   let new_model =
     match action with
+    | Update str -> { curr_model with field = str }
     | Add ->
-        (* FIXME: field is empty here! *)
-        let new_todo = { descr = "FIXME: " ^ curr_model.field } in
-        { curr_model with todos = new_todo :: curr_model.todos }
+        let new_todo = { descr = curr_model.field } in
+        { curr_model with todos = new_todo :: curr_model.todos; field = "" }
   in
   f new_model
 ;;
@@ -46,19 +51,23 @@ let bind_event ev elem handler =
 ;;
 
 let task_entry ((r, f) : rp) =
-  let clear_input = task_input_dom##.value := Js_of_ocaml.Js.string "" in
+  (* let clear_input = task_input_dom##.value := Js_of_ocaml.Js.string "" in *)
+  bind_event Js_of_ocaml_lwt.Lwt_js_events.keypresses
+    (task_input_dom (r, f))
+    (fun evt ->
+      Lwt.return @@ if evt##.keyCode = 13 then update Add (r, f)
+      (* ; clear_input *))
 
-  let update_on_enter evt =
-    Lwt.return
-      (if evt##.keyCode = 13 then (
-        update Add (r, f)
-        ; clear_input
-      ))
-  in
+  ; bind_event Js_of_ocaml_lwt.Lwt_js_events.inputs
+      (task_input_dom (r, f))
+      (fun _ ->
+        Lwt.return
+        @@ update
+             (Update
+                ((task_input_dom (r, f))##.value |> Js_of_ocaml.Js.to_string))
+             (r, f))
 
-  bind_event Js_of_ocaml_lwt.Lwt_js_events.keypresses task_input_dom
-    update_on_enter
-  ; task_input
+  ; task_input (r, f)
 ;;
 
 let css_visibility (model : model) =

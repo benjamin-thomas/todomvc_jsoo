@@ -1,5 +1,5 @@
 (executable
- (name todomvc)
+ (name main)
  (libraries
   js_of_ocaml-ppx
   lwt

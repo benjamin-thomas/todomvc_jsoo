@@ -1,4 +1,4 @@
 # foreman start -f Procfile.dev
 web: live-server --no-browser ./web/
 compile: dune build -w
-reload_web: while true;do echo _build/default/src/todomvc.bc.js | entr touch ./web/index.html;sleep 1;done
+reload_web: while true;do find _build/default/src -name "*.bc.js" | entr touch ./public/index.html;sleep 1;done
