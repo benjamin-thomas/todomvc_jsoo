@@ -1,4 +1,4 @@
 # foreman start -f Procfile.dev
-web: live-server --no-browser ./public/
-compile: dune build -w
+web: live-server --no-browser --ignorePattern="\/js\/" ./public/
+compile: dune build ./src/ -w
 reload_web: while true;do find _build/default/src -name "*.bc.js" | entr touch ./public/index.html;sleep 1;done
