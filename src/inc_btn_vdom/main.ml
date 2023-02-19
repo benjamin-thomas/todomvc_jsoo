@@ -1,46 +1,38 @@
-(* This file is part of the ocaml-vdom package, released under the terms of an MIT-like license.     *)
-(* See the attached LICENSE file.                                                                    *)
-(* Copyright 2016 by LexiFi.                                                                         *)
+module V = Vdom
 
-(* Inspired from https://github.com/janestreet/incr_dom/blob/master/example/incr_decr/counters.ml *)
+let p = V.elt "p"
+let br = V.elt "br"
 
-open Vdom
+type model = int
 
-module IntMap = Map.Make (struct
-  type t = int
-
-  let compare : int -> int -> int = compare
-end)
-
-type model = { counters : int IntMap.t }
-
-let update { counters } = function
-  | `New_counter ->
-      { counters = IntMap.add (IntMap.cardinal counters) 0 counters }
-  | `Update (pos, diff) ->
-      { counters = IntMap.add pos (IntMap.find pos counters + diff) counters }
+let update (model : model) = function
+  | `Inc -> model + 1
+  | `Dec -> model - 1
 ;;
 
-let init = { counters = IntMap.empty }
+let init = 0
 
 let button txt msg =
-  input [] ~a:[ onclick (fun _ -> msg); type_button; value txt ]
+  V.(input [] ~a:[ onclick (fun _ -> msg); type_button; value txt ])
 ;;
 
-let view { counters } =
-  let row (pos, value) =
-    div
-      [ button "-" (`Update (pos, -1))
-      ; text (string_of_int value)
-      ; button "+" (`Update (pos, 1))
-      ]
+let view model =
+  let row =
+    V.(div [ button "-" `Dec; text (string_of_int model); button "+" `Inc ])
   in
-  div
-    (div [ button "New counter" `New_counter ]
-    :: (IntMap.bindings counters |> List.map row))
+  V.(
+    div
+      [ row
+      ; div
+          [ p [ text "Hello custom p tag" ]
+          ; br []
+          ; p [ text "Hello custom p tag, again" ]
+          ; button (string_of_int model) `Inc
+          ]
+      ])
 ;;
 
-let app = simple_app ~init ~view ~update ()
+let app = V.simple_app ~init ~view ~update ()
 
 open Js_browser
 
