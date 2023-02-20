@@ -9,8 +9,6 @@ module V = Vdom
 type data = Not_started | Loading | Loaded of string
 type model = { x : int; d : data }
 
-let init = V.return { x = 0; d = Not_started }
-
 (* HTTP *)
 let get_todo =
   let open Js_browser in
@@ -30,7 +28,9 @@ let get_todo =
 
 type msg = Inc | Dec | Get_todo
 
-let update model msg =
+let init : model * msg V.Cmd.t = V.return { x = 0; d = Not_started }
+
+let update (model : model) (msg : msg) : model * msg V.Cmd.t =
   match msg with
   | Inc -> V.return { model with x = model.x + 1 }
   | Dec -> ({ model with x = model.x - 1 }, V.Cmd.batch [])
@@ -50,7 +50,7 @@ let button txt msg =
 let p = V.elt "p"
 let br = V.elt "br"
 
-let view (model : model) =
+let view (model : model) : msg V.vdom =
   let row =
     V.(div [ button "-" Dec; text (string_of_int model.x); button "+" Inc ])
   in
