@@ -1,4 +1,7 @@
 # foreman start -f Procfile.dev
 web: live-server --no-browser --host=$(hostname -I | awk '{print $1}') --ignorePattern="\/js\/" ./public/
-compile: dune build ./src/ -w
-reload_web: while true;do find _build/default/src -name "*.bc.js" | entr touch ./public/index.html;sleep 1;done
+compile: find src -name "*.ml" -o -name "*.mli" | entr bash -c 'dune build && touch ./public/index.html'
+
+# Below caused infinite compile loops. Keeping for ref, for now.
+#compile: dune build ./src/ -w
+#reload_web: while true;do find _build/default/src -name "*.bc.js" | entr touch ./public/index.html;sleep 1;done
