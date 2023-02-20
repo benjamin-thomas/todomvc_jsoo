@@ -1,6 +1,10 @@
 open Vdom
 
-(* Custom commands *)
+(*
+ * CUSTOM COMMANDS
+ *
+ * NOTE: must have custom handler defined below!
+ *)
 
 type 'msg Vdom.Cmd.t +=
   | Http_get of { url : string; payload : string; on_success : string -> 'msg }
@@ -16,79 +20,11 @@ let button ?(a = []) txt f =
 
 let after x f = After (x, f)
 
-type content = Nothing | Loading of string | Data of string
-type model = { url : string; focused : bool; content : content }
-
-let init =
-  return
-    { url = "https://jsonplaceholder.typicode.com/todos/1"
-    ; focused = false
-    ; content = Nothing
-    }
-;;
-
-let update model = function
-  | `Set url -> return { model with url }
-  | `FetchStart ->
-      return
-        { model with content = Loading model.url }
-        ~c:
-          (if String.ends_with ~suffix:"2" model.url then
-            (* [ http_get ~url:model.url ~payload:"" (fun r -> `Fetched r) ] *)
-            (* Line above also works! *)
-            [ Http_get
-                { url = model.url
-                ; payload = ""
-                ; on_success = (fun r -> `Fetched r)
-                }
-            ]
-          else
-            [ after 2000 (`Fetch model.url) ])
-  | `Fetch url ->
-      return model ~c:[ http_get ~url ~payload:"" (fun r -> `Fetched r) ]
-  | `Fetched s -> return { model with content = Data s }
-  | `Focused b -> return { model with focused = b }
-;;
-
-let view { url; focused; content } =
-  div
-    [ input
-        ~a:
-          [ int_prop "size"
-              (if focused then
-                200
-              else
-                100)
-          ; value url
-          ; oninput (fun s -> `Set s)
-          ; onfocus (`Focused true)
-          ; onblur (`Focused false)
-          ]
-        []
-    ; div [ button "Fetch" `FetchStart ]
-    ; (match content with
-      | Nothing ->
-          text
-            "Please type an URL to load.\n\
-             (NOTE: no artificial delay if URL ends with '2')"
-      | Loading url -> text (Printf.sprintf "Loading %s, please wait..." url)
-      | Data data -> elt "pre" [ text data ])
-    ]
-;;
-
-(* APP *)
-
-let app = { init; update; view }
-
-let run () =
-  Vdom_blit.run app
-  |> Vdom_blit.dom
-  |> Js_browser.(Element.append_child (Document.body document))
-;;
-
-let () = Js_browser.(Window.set_onload window run)
-
-(* Custom command handlers *)
+(*
+ * CUSTOM COMMAND HANDLERS
+ *
+ * NOTE: handlers must be registered below!
+ *)
 
 let run_http_get ~url ~payload ~on_success () =
   let open Js_browser.XHR in
@@ -117,3 +53,97 @@ let cmd_handler ctx = function
 ;;
 
 let () = Vdom_blit.(register (cmd { f = cmd_handler }))
+
+(*
+ * MODEL
+ *)
+
+type content = Nothing | Loading of string | Data of string
+type model = { url : string; focused : bool; content : content }
+
+(*
+ * UPDATE
+ *)
+
+type msg =
+  | Set of string
+  | FetchStart
+  | Fetch of string
+  | Fetched of string
+  | Focused of bool
+
+let init : model * msg Cmd.t =
+  return
+    { url = "https://jsonplaceholder.typicode.com/todos/1"
+    ; focused = false
+    ; content = Nothing
+    }
+;;
+
+let update (model : model) (msg : msg) : model * msg Cmd.t =
+  match msg with
+  | Set url -> return { model with url }
+  | FetchStart ->
+      return
+        { model with content = Loading model.url }
+        ~c:
+          (if String.ends_with ~suffix:"2" model.url then
+            [ http_get ~url:model.url ~payload:"" (fun r -> Fetched r) ]
+          (* Line below also works! *)
+          (* [ Http_get
+                 { url = model.url
+                 ; payload = ""
+                 ; on_success = (fun r -> Fetched r)
+                 }
+             ] *)
+          else
+            [ after 2000 (Fetch model.url) ])
+  | Fetch url ->
+      return model ~c:[ http_get ~url ~payload:"" (fun r -> Fetched r) ]
+  | Fetched s -> return { model with content = Data s }
+  | Focused b -> return { model with focused = b }
+;;
+
+(*
+ * VIEW
+ *)
+
+let view (model : model) : msg vdom =
+  div
+    [ input
+        ~a:
+          [ int_prop "size"
+              (if model.focused then
+                200
+              else
+                100)
+          ; value model.url
+          ; oninput (fun s -> Set s)
+          ; onfocus (Focused true)
+          ; onblur (Focused false)
+          ]
+        []
+    ; div [ button "Fetch" FetchStart ]
+    ; (match model.content with
+      | Nothing ->
+          text
+            "Please type an URL to load.\n\
+             (NOTE: no artificial delay if URL ends with '2')"
+      | Loading url -> text (Printf.sprintf "Loading %s, please wait..." url)
+      | Data data -> elt "pre" [ text data ])
+    ]
+;;
+
+(*
+ * INIT
+ *)
+
+let app = { init; update; view }
+
+let run () =
+  Vdom_blit.run app
+  |> Vdom_blit.dom
+  |> Js_browser.(Element.append_child (Document.body document))
+;;
+
+let () = Js_browser.(Window.set_onload window run)
