@@ -1,24 +1,43 @@
+[@@@warning "-32-37-69"]
+
 module V = Vdom
 
 (*
  * MODEL
  *)
 
-type model = int [@@warning "-34"]
+type data = Not_started | Loading | Loaded of string
+type model = { x : int; d : data }
 
-let init = 0
+let init = V.return { x = 0; d = Not_started }
+
+(* HTTP *)
+let get_todo =
+  let open Js_browser in
+  let xhr = XHR.create () in
+  XHR.open_ xhr "GET" "https://jsonplaceholder.typicode.com/todos/1"
+  ; XHR.set_onreadystatechange xhr @@ fun () ->
+    match XHR.ready_state xhr with
+    | Done ->
+        print_endline "Got data!"
+        ; print_endline (XHR.response_text xhr)
+    | _ -> ()
+;;
 
 (*
  * UPDATE
  *)
 
-type msg = Inc | Dec
+type msg = Inc | Dec | Get_todo
 
 let update model msg =
   match msg with
-  | Inc -> model + 1
-  | Dec -> model - 1
+  | Inc -> V.return { model with x = model.x + 1 }
+  | Dec -> ({ model with x = model.x - 1 }, V.Cmd.batch [])
+  | Get_todo -> V.return { model with d = Loading }
 ;;
+
+(* | Get_todo -> V.return 9 ~c:[ V.Cmd.batch [] ] *)
 
 let button txt msg =
   V.(input [] ~a:[ onclick (fun _ -> msg); type_button; value txt ])
@@ -31,9 +50,9 @@ let button txt msg =
 let p = V.elt "p"
 let br = V.elt "br"
 
-let view model =
+let view (model : model) =
   let row =
-    V.(div [ button "-" Dec; text (string_of_int model); button "+" Inc ])
+    V.(div [ button "-" Dec; text (string_of_int model.x); button "+" Inc ])
   in
   V.(
     div
@@ -42,12 +61,25 @@ let view model =
           [ p [ text "Hello custom p tag" ]
           ; br []
           ; p [ text "Hello custom p tag, again" ]
-          ; button (string_of_int model) Inc
+          ; button (string_of_int model.x) Inc
+          ; br []
+          ; button "Click to fetch data" Get_todo
           ]
       ])
 ;;
 
-let app = V.simple_app ~init ~view ~update ()
+(* let run_http_get ~url ~payload ~on_success () =
+     let open Js_browser.XHR in
+     let r = create () in
+     open_ r "GET" url
+     ; set_onreadystatechange r (fun () ->
+           match ready_state r with
+           | Done -> on_success (response_text r)
+           | _ -> ())
+     ; send r payload
+   ;; *)
+
+let app = V.app ~init ~view ~update ()
 
 let run () =
   Vdom_blit.run app
