@@ -16,23 +16,37 @@ let button ?(a = []) txt f =
 
 let after x f = After (x, f)
 
-type model =
-  { url : string
-  ; focused : bool
-  ; content : [ `Nothing | `Loading of string | `Data of string ]
-  }
+type content = Nothing | Loading of string | Data of string
+type model = { url : string; focused : bool; content : content }
 
-let init = return { url = ""; focused = false; content = `Nothing }
+let init =
+  return
+    { url = "https://jsonplaceholder.typicode.com/todos/1"
+    ; focused = false
+    ; content = Nothing
+    }
+;;
 
 let update model = function
   | `Set url -> return { model with url }
   | `FetchStart ->
       return
-        { model with content = `Loading model.url }
-        ~c:[ after 2000 (`Fetch model.url) ]
+        { model with content = Loading model.url }
+        ~c:
+          (if String.ends_with ~suffix:"2" model.url then
+            (* [ http_get ~url:model.url ~payload:"" (fun r -> `Fetched r) ] *)
+            (* Line above also works! *)
+            [ Http_get
+                { url = model.url
+                ; payload = ""
+                ; on_success = (fun r -> `Fetched r)
+                }
+            ]
+          else
+            [ after 2000 (`Fetch model.url) ])
   | `Fetch url ->
       return model ~c:[ http_get ~url ~payload:"" (fun r -> `Fetched r) ]
-  | `Fetched s -> return { model with content = `Data s }
+  | `Fetched s -> return { model with content = Data s }
   | `Focused b -> return { model with focused = b }
 ;;
 
@@ -53,12 +67,12 @@ let view { url; focused; content } =
         []
     ; div [ button "Fetch" `FetchStart ]
     ; (match content with
-      | `Nothing ->
+      | Nothing ->
           text
-            "Please type an URL to load. (e.g. \
-             https://jsonplaceholder.typicode.com/todos/1)"
-      | `Loading url -> text (Printf.sprintf "Loading %s, please wait..." url)
-      | `Data data -> elt "pre" [ text data ])
+            "Please type an URL to load.\n\
+             (NOTE: no artificial delay if URL ends with '2')"
+      | Loading url -> text (Printf.sprintf "Loading %s, please wait..." url)
+      | Data data -> elt "pre" [ text data ])
     ]
 ;;
 
